@@ -1,0 +1,79 @@
+#!/bin/bash
+# Auslieferung Dorfkino-Reservierung auf Linevast.
+# Liegt auf dem Server unter /home/deploy/git/dorfkino-reservierung.git/hooks/post-receive.
+# Quelle im Repo: deploy/post-receive. Aenderungen dort vornehmen und mit
+# deploy/install-hook.sh erneut aufspielen.
+
+set -euo pipefail
+
+DEPLOY_BRANCH="main"
+REPO="/home/deploy/git/dorfkino-reservierung.git"
+STAGING="/home/deploy/git/.staging-dorfkino"
+TARGET="/home/deploy/apps/dorfkino-reservierung"
+VENV="/home/deploy/nodevenv/apps/dorfkino-reservierung/22/bin/activate"
+
+while read -r oldrev newrev ref; do
+  if [ "$ref" != "refs/heads/$DEPLOY_BRANCH" ]; then
+    echo "--> $ref uebersprungen, ausgeliefert wird nur $DEPLOY_BRANCH."
+    continue
+  fi
+
+  if [ "$newrev" = "0000000000000000000000000000000000000000" ]; then
+    echo "--> $DEPLOY_BRANCH geloescht, keine Auslieferung."
+    continue
+  fi
+
+  echo "--> Auslieferung von $(git --git-dir="$REPO" log -1 --pretty='%h %s' "$newrev")"
+
+  rm -rf "$STAGING"
+  mkdir -p "$STAGING"
+  git --git-dir="$REPO" archive "$newrev" | tar -x -C "$STAGING"
+
+  SRC="$STAGING/app"
+  if [ ! -f "$SRC/app.cjs" ] || [ ! -f "$SRC/server.js" ]; then
+    echo "FEHLER: app/app.cjs oder app/server.js fehlt im Commit. Auslieferung abgebrochen."
+    rm -rf "$STAGING"
+    exit 1
+  fi
+
+  # npm ci nur, wenn sich die Abhaengigkeiten wirklich geaendert haben.
+  NEED_INSTALL=0
+  cmp -s "$SRC/package-lock.json" "$TARGET/package-lock.json" || NEED_INSTALL=1
+
+  # Kein --delete: Live-Dateien ausserhalb des Repos bleiben unangetastet.
+  # .env, data/ und node_modules/ gehoeren dem Server, nie dem Repo.
+  rsync -a --chmod=D755,F644 \
+    --exclude='.env' \
+    --exclude='data/' \
+    --exclude='node_modules/' \
+    --exclude='tmp/' \
+    --exclude='*.log' \
+    --exclude='*.zip' \
+    --exclude='test/' \
+    --exclude='demo.js' \
+    --exclude='google-sheet/' \
+    --exclude='README.md' \
+    --exclude='.gitignore' \
+    --exclude='.DS_Store' \
+    "$SRC/" "$TARGET/"
+  echo "--> Dateien abgeglichen."
+
+  if [ "$NEED_INSTALL" -eq 1 ]; then
+    echo "--> package-lock.json geaendert, npm ci laeuft."
+    set +u
+    # shellcheck disable=SC1090
+    source "$VENV"
+    set -u
+    ( cd "$TARGET" && npm ci --omit=dev )
+    echo "--> Abhaengigkeiten neu installiert."
+  else
+    echo "--> Abhaengigkeiten unveraendert, npm ci uebersprungen."
+  fi
+
+  mkdir -p "$TARGET/tmp"
+  touch "$TARGET/tmp/restart.txt"
+  echo "--> Passenger-Neustart angefordert."
+
+  rm -rf "$STAGING"
+  echo "--> Auslieferung abgeschlossen."
+done
