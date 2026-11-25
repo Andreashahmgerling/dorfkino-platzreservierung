@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <style>
+      :root {
+        --bg: #f6f6f3;
+        --panel: #ffffff;
+        --text: #1f1f1a;
+        --muted: #6e6e66;
+        --line: #dddcd4;
+        --accent: #0f6a6f;
+        --accent-dark: #0b4f53;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        padding: 16px;
+        font: 14px/1.45 Arial, sans-serif;
+        color: var(--text);
+        background: var(--bg);
+      }
+
+      .wrap {
+        display: grid;
+        gap: 14px;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px;
+      }
+
+      h1 {
+        font-size: 18px;
+        margin: 0 0 6px;
+      }
+
+      p.help {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .searchbar {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      input, textarea {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #cfcfc7;
+        border-radius: 10px;
+        outline: none;
+        font: inherit;
+      }
+
+      input:focus, textarea:focus {
+        border-color: var(--accent);
+      }
+
+      button {
+        border: 0;
+        border-radius: 10px;
+        padding: 10px 14px;
+        background: var(--accent);
+        color: white;
+        cursor: pointer;
+        font-weight: 600;
+      }
+
+      button:hover {
+        background: var(--accent-dark);
+      }
+
+      .status {
+        font-size: 13px;
+        color: var(--muted);
+        min-height: 18px;
+      }
+
+      .results {
+        display: grid;
+        gap: 10px;
+      }
+
+      .card {
+        display: grid;
+        grid-template-columns: 72px 1fr;
+        gap: 12px;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+      }
+
+      .poster {
+        width: 72px;
+        height: 108px;
+        object-fit: cover;
+        border-radius: 8px;
+        background: #ecebe4;
+      }
+
+      .meta {
+        display: grid;
+        gap: 6px;
+      }
+
+      .title {
+        font-size: 15px;
+        font-weight: 700;
+        line-height: 1.25;
+      }
+
+      .sub {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .overview {
+        font-size: 12px;
+        color: #3b3b35;
+        display: -webkit-box;
+        -webkit-line-clamp: 4;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      .actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 4px;
+        align-items: center;
+      }
+
+      .empty {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .tiny {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+
+      dialog {
+        color: var(--text);
+        width: calc(100% - 24px);
+        max-width: 380px;
+        max-height: calc(100% - 24px);
+      }
+
+      dialog::backdrop { background: #1f1f1a66; }
+
+      dialog h2 { margin: 0 0 4px; font-size: 16px; }
+
+      .screening-fields {
+        display: grid;
+        gap: 10px;
+        min-width: 0;
+        margin: 12px 0 0;
+        padding: 0;
+        border: 0;
+      }
+
+      .screening-fields label { display: grid; gap: 4px; }
+      .screening-fields textarea { resize: vertical; }
+      .dialog-actions { display: grid; gap: 8px; }
+      .secondary { background: var(--bg); color: var(--text); }
+      .secondary:hover { background: var(--line); }
+      button:disabled { opacity: .6; cursor: wait; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="panel">
+        <h1>TMDB Film-Assistent</h1>
+        <p class="help">Film suchen, Vorführtermin eingeben und die Daten in der ausgewählten Filmzeile speichern.</p>
+
+        <div class="searchbar">
+          <input id="query" type="text" placeholder="z. B. Perfect Days" />
+          <button onclick="runSearch()">Suchen</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div id="status" class="status">Bereit.</div>
+        <div id="results" class="results"></div>
+      </div>
+    </div>
+
+    <dialog id="screening-dialog" class="panel" aria-labelledby="screening-heading">
+      <h2 id="screening-heading">Vorführung eintragen</h2>
+      <p id="screening-movie" class="help"></p>
+      <form id="screening-form">
+        <fieldset id="screening-fields" class="screening-fields">
+          <label>Vorführdatum <input name="date" type="date" required autofocus></label>
+          <label>Erste Startzeit <input name="firstStart" type="time" required></label>
+          <label>Zweite Startzeit <input name="secondStart" type="time" required></label>
+          <label>Kommentar <textarea name="comment" rows="4"></textarea></label>
+          <div class="dialog-actions">
+            <button type="submit" value="comment">Mit Kommentar speichern</button>
+            <button type="submit" value="skip" class="secondary">Kommentar überspringen und speichern</button>
+            <button type="button" id="cancel-screening" class="secondary">Abbrechen</button>
+          </div>
+        </fieldset>
+        <div id="screening-status" class="status" role="status"></div>
+      </form>
+    </dialog>
+
+    <script>
+      let currentResults = [];
+      let selectedMovie;
+      const screeningDialog = document.getElementById('screening-dialog');
+      const screeningForm = document.getElementById('screening-form');
+      const screeningFields = document.getElementById('screening-fields');
+      const screeningStatus = document.getElementById('screening-status');
+
+      function escapeHtml(str) {
+        return String(str || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+
+      function runSearch() {
+        const query = document.getElementById('query').value.trim();
+        const status = document.getElementById('status');
+        const results = document.getElementById('results');
+
+        if (!query) {
+          status.textContent = 'Bitte einen Filmtitel eingeben.';
+          results.innerHTML = '';
+          return;
+        }
+
+        status.textContent = 'Suche läuft …';
+        results.innerHTML = '';
+
+        google.script.run
+          .withSuccessHandler(renderResults)
+          .withFailureHandler(showError)
+          .searchTmdbMovies(query);
+      }
+
+      function renderResults(items) {
+        currentResults = items || [];
+        const status = document.getElementById('status');
+        const results = document.getElementById('results');
+
+        if (!currentResults.length) {
+          status.textContent = 'Keine Treffer gefunden.';
+          results.innerHTML = '<div class="empty">Keine passenden Filme gefunden.</div>';
+          return;
+        }
+
+        status.textContent = currentResults.length + ' Treffer gefunden.';
+        results.innerHTML = currentResults.map((item, index) => {
+          const poster = item.poster_url
+            ? '<img class="poster" src="' + escapeHtml(item.poster_url) + '" alt="">'
+            : '<div class="poster"></div>';
+
+          const year = item.year ? ' · ' + escapeHtml(item.year) : '';
+          const lang = item.original_language ? ' · ' + escapeHtml(item.original_language) : '';
+          const rating = item.vote_average ? ' · Rating: ' + escapeHtml(item.vote_average) : '';
+
+          return `
+            <div class="card">
+              ${poster}
+              <div class="meta">
+                <div class="title">${escapeHtml(item.title)}</div>
+                <div class="sub">${escapeHtml(item.original_title || '')}${year}${lang}${rating}</div>
+                <div class="overview">${escapeHtml(item.overview || '')}</div>
+                <div class="actions">
+                  <button onclick="selectMovie(${index})">Übernehmen</button>
+                  <a href="${escapeHtml(item.tmdb_url)}" target="_blank">TMDB</a>
+                </div>
+                <div class="tiny">Beim Übernehmen werden zusätzlich Genre, Laufzeit, Regie, Autor und 5 Darsteller geladen.</div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      function selectMovie(index) {
+        const movie = currentResults[index];
+        if (!movie) return;
+
+        selectedMovie = movie;
+        screeningForm.reset();
+        screeningStatus.textContent = '';
+        document.getElementById('screening-movie').textContent = movie.title;
+        screeningDialog.showModal();
+      }
+
+      screeningForm.addEventListener('submit', function(event) {
+        event.preventDefault();
+        if (screeningFields.disabled) return;
+
+        const commentField = screeningForm.elements.namedItem('comment');
+        const skipComment = event.submitter && event.submitter.value === 'skip';
+        if (!skipComment && !commentField.value.trim()) {
+          screeningStatus.textContent = 'Bitte einen Kommentar eingeben oder ausdrücklich überspringen.';
+          commentField.focus();
+          return;
+        }
+        const screening = {
+          date: screeningForm.elements.namedItem('date').value,
+          firstStart: screeningForm.elements.namedItem('firstStart').value,
+          secondStart: screeningForm.elements.namedItem('secondStart').value,
+          comment: skipComment ? null : commentField.value
+        };
+
+        screeningFields.disabled = true;
+        screeningStatus.textContent = 'Lade Filmdetails und speichere …';
+
+        google.script.run
+          .withSuccessHandler(function(result) {
+            screeningFields.disabled = false;
+            screeningDialog.close();
+            document.getElementById('status').textContent =
+              'Gespeichert: "' + result.title + '" in Zeile ' + result.row + ' (' + result.sheetName + ').';
+          })
+          .withFailureHandler(function(err) {
+            screeningFields.disabled = false;
+            screeningStatus.textContent = err && err.message ? err.message : String(err);
+          })
+          .writeSelectedMovieToSheet(selectedMovie, screening);
+      });
+
+      document.getElementById('cancel-screening').addEventListener('click', function() {
+        screeningDialog.close();
+      });
+
+      screeningDialog.addEventListener('cancel', function(event) {
+        if (screeningFields.disabled) event.preventDefault();
+      });
+
+      function showError(err) {
+        const msg = err && err.message ? err.message : String(err);
+        document.getElementById('status').textContent = 'Fehler: ' + msg;
+      }
+
+      document.getElementById('query').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') runSearch();
+      });
+    </script>
+  </body>
+</html>

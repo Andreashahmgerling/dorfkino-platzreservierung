@@ -1,11 +1,12 @@
 # Dorfkino-Platzreservierung
 
-Reservierungssystem für das Dorfkino Lögow, ein kleines Kino mit 16 Plätzen je Vorstellung in Brandenburg. Gäste wählen Film und Uhrzeit, geben die Zahl der Plätze, Name und E-Mail an und bezahlen vor Ort. Es gibt keine Konten und keine festen Sitznummern.
+Werkzeuge für das Dorfkino Lögow: Filmprogramm, Ankündigungen und Platzreservierung. Die Reservierung ist für ein kleines Kino in Brandenburg mit 16 Plätzen je Vorstellung gebaut. Gäste wählen Film und Uhrzeit, geben die Zahl der Plätze, Name und E-Mail an und bezahlen vor Ort. Es gibt keine Konten und keine festen Sitznummern.
 
 ## Bestandteile
 
 - `app/`: Node.js-App (ab Node 22.23.2) mit dem eingebauten `node:sqlite`. Buchung, Bestätigung, Stornolink, geschützte Übersicht für das Kino, E-Mail-Versand über SMTP mit Warteschlange, die Neustarts übersteht. Begrenzung der Buchungsanfragen je Absender.
 - `app/google-sheet/` und `google-apps-script/`: Google Apps Script, das Vorstellungen aus dem Filmprogramm-Sheet an die App überträgt und einen Newsletter-Entwurf erzeugt.
+- `programm-und-newsletter/`: Google Apps Script für die Kette vom Film zur Ankündigung. Filmdaten aus TMDB, belegte Zusatzfakten und Texte für Newsletter und Social Media mit Claude, Versand über Gmail oder Sendy, Übergabe der Vorstellungen an die Reservierung. Details in der dortigen README.
 - `deploy/`: Git-Hook, der nach einem Push die App auf einen Server mit Passenger ausliefert.
 
 ## Ausprobieren
